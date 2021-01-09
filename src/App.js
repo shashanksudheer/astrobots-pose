@@ -18,13 +18,10 @@ import logo from './astrobots_logo.png';
 function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
+  const videoWidth = 640;
+  const videoHeight = 480;
 
   const detect = async (net) => {
-    if (
-      typeof webcamRef.current !== "undefined" &&
-      webcamRef.current !== null &&
-      webcamRef.current.video.readyState === 4
-    ) {
       // Get Video Properties
       const video = webcamRef.current.video;
       const videoWidth = webcamRef.current.video.videoWidth;
@@ -40,12 +37,19 @@ function App() {
 
       async function poseFrame() {
         let poses = [];
+        let minPoseConfidence;
+        let minPartConfidence;
 
         const pose = await net.estimatePoses(video, {
           flipHorizontal: true,
-          decodingMethod: 'single-person'
+          decodingMethod: 'multi-person',
+          maxDetections: 5,
+          scoreThreshold: 0.1,
+          nmsRadius: 30.0
         });
         poses = pose.concat(pose);
+        minPoseConfidence = +0.15;
+        minPartConfidence = +0.1;
 
         ctx.clearRect(0, 0, videoWidth, videoHeight);
         ctx.save();
@@ -55,15 +59,16 @@ function App() {
         ctx.restore();
 
         poses.forEach(({score, keypoints}) => {
-          drawKeypoints(keypoints, 0.6, ctx);
-          drawSkeleton(keypoints, 0.7, ctx);
+          if (score >= 0.15) {
+            drawKeypoints(keypoints, 0.1, ctx);
+            drawSkeleton(keypoints, 0.1, ctx);
+          }
         });
 
         requestAnimationFrame(poseFrame);
       }
 
       poseFrame();
-    }
   };
 
   //  Load posenet
@@ -71,9 +76,10 @@ function App() {
     const net = await posenet.load({
       architecture: 'MobileNetV1',
       outputStride: 16,
-      inputResolution: { width: 480, height: 400 },
+      inputResolution: {width: 257, height: 200},
       multiplier: 0.75
     });
+
     detect(net);
   };
 
@@ -106,8 +112,8 @@ function App() {
             right: 0,
             textAlign: "center",
             zindex: 9,
-            width: 480,
-            height: 400,
+            width: 640,
+            height: 480,
           }}
         />
 
@@ -122,8 +128,8 @@ function App() {
             right: 0,
             textAlign: "center",
             zindex: 9,
-            width: 480,
-            height: 400,
+            width: 640,
+            height: 480,
           }}
         />
       </header>
